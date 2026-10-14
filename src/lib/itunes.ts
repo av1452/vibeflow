@@ -1,23 +1,25 @@
-export interface ITunesAlbum {
-  collectionId: number;
-  collectionName: string;
+export interface ITunesTrack {
+  trackId: number;
+  collectionId?: number;
+  trackName: string;
   artistName: string;
+  collectionName: string;
   artworkUrl100: string;
+  trackViewUrl?: string;
   collectionViewUrl?: string;
-  releaseDate?: string;
-  trackCount?: number;
+  previewUrl?: string;
 }
 
 interface ITunesSearchResponse {
-  results: ITunesAlbum[];
+  results: ITunesTrack[];
 }
 
-export async function searchAppleAlbums(
+export async function searchAppleCatalog(
   term: string
-): Promise<ITunesAlbum[]> {
+): Promise<ITunesTrack[]> {
   const url = new URL("https://" + "itunes.apple.com" + "/search");
   url.searchParams.set("term", term);
-  url.searchParams.set("entity", "album");
+  url.searchParams.set("entity", "song");
   url.searchParams.set("limit", "30");
 
   const response = await fetch(url.toString());

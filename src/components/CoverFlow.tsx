@@ -1,45 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { searchAppleAlbums, type ITunesAlbum } from "@/lib/itunes";
+import { searchAppleCatalog, type ITunesTrack } from "@/lib/itunes";
 
-type Album = {
-  id: number | string;
+type Song = {
+  id: number;
   title: string;
   artist: string;
-  colors: [string, string];
+  album: string;
   artworkUrl?: string;
-  appleMusicUrl?: string;
+  embedUrl?: string;
 };
 
-const demoAlbums: Album[] = [
-  { id: "demo-1", title: "Midnight Drive", artist: "Demo Artist", colors: ["#ff512f", "#7b2ff7"] },
-  { id: "demo-2", title: "Electric Dreams", artist: "Demo Artist", colors: ["#00c6ff", "#0072ff"] },
-  { id: "demo-3", title: "After Hours", artist: "Demo Artist", colors: ["#f953c6", "#b91d73"] },
-  { id: "demo-4", title: "Summer Nights", artist: "Demo Artist", colors: ["#f7971e", "#ffd200"] },
-  { id: "demo-5", title: "Neon City", artist: "Demo Artist", colors: ["#11998e", "#38ef7d"] },
-  { id: "demo-6", title: "Blue Horizon", artist: "Demo Artist", colors: ["#396afc", "#2948ff"] },
-];
+function makeEmbedUrl(trackUrl?: string) {
+  if (!trackUrl) return undefined;
 
-const colors: [string, string][] = [
-  ["#ff512f", "#7b2ff7"],
-  ["#00c6ff", "#0072ff"],
-  ["#f953c6", "#b91d73"],
-  ["#f7971e", "#ffd200"],
-  ["#11998e", "#38ef7d"],
-  ["#396afc", "#2948ff"],
-];
+  try {
+    const url = new URL(trackUrl);
+
+    if (
+      url.hostname !== "music.apple.com" &&
+      url.hostname !== "itunes.apple.com"
+    ) {
+      return undefined;
+    }
+
+    url.hostname = "embed.music.apple.com";
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
 
 export default function CoverFlow() {
-  const [albums, setAlbums] = useState<Album[]>(demoAlbums);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [selected, setSelected] = useState(0);
+  const [playerOpen, setPlayerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const term = query.trim();
     if (!term) return;
 
@@ -47,33 +49,28 @@ export default function CoverFlow() {
     setError("");
 
     try {
-      const results: ITunesAlbum[] = await searchAppleAlbums(term);
+      const results: ITunesTrack[] = await searchAppleCatalog(term);
 
-      const uniqueAlbums = Array.from(
-        new Map(
-          results.map((album) => [album.collectionId, album])
-        ).values()
-      );
-
-      const formattedAlbums: Album[] = uniqueAlbums.map((album, index) => ({
-        id: album.collectionId,
-        title: album.collectionName,
-        artist: album.artistName,
-        colors: colors[index % colors.length],
-        artworkUrl: album.artworkUrl100?.replace(
+      const formattedSongs: Song[] = results.map((track) => ({
+        id: track.trackId,
+        title: track.trackName,
+        artist: track.artistName,
+        album: track.collectionName,
+        artworkUrl: track.artworkUrl100?.replace(
           "100x100bb",
           "600x600bb"
         ),
-        appleMusicUrl: album.collectionViewUrl,
+        embedUrl: makeEmbedUrl(track.trackViewUrl),
       }));
 
-      if (formattedAlbums.length === 0) {
-        setError("No albums found. Try another artist or search.");
+      if (!formattedSongs.length) {
+        setError("No songs found. Try another search.");
         return;
       }
 
-      setAlbums(formattedAlbums);
+      setSongs(formattedSongs);
       setSelected(0);
+      setPlayerOpen(false);
     } catch {
       setError("Couldn't load Apple's catalog. Please try again.");
     } finally {
@@ -81,21 +78,30 @@ export default function CoverFlow() {
     }
   }
 
-  function move(direction: number) {
-    setSelected(
-      (current) => (current + direction + albums.length) % albums.length
-    );
+  function selectSong(index: number) {
+    if (index === selected) {
+      setPlayerOpen(true);
+    } else {
+      setSelected(index);
+      setPlayerOpen(true);
+    }
   }
 
-  const currentAlbum = albums[selected];
+  function move(direction: number) {
+    if (!songs.length) return;
+
+    setSelected(
+      (current) => (current + direction + songs.length) % songs.length
+    );
+    setPlayerOpen(false);
+  }
+
+  const currentSong = songs[selected];
 
   return (
     <section className="coverflow">
-      <p
-        className="eyebrow"
-        style={{ marginBottom: 24, textAlign: "center" }}
-      >
-        YOUR COLLECTION
+      <p className="eyebrow" style={{ textAlign: "center", marginBottom: 24 }}>
+        YOUR MUSIC
       </p>
 
       <form
@@ -114,8 +120,8 @@ export default function CoverFlow() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search albums or artists..."
-          aria-label="Search Apple's album catalog"
+          placeholder="Search songs or artists..."
+          aria-label="Search songs or artists"
           style={{
             flex: 1,
             minWidth: 0,
@@ -126,7 +132,6 @@ export default function CoverFlow() {
             color: "inherit",
           }}
         />
-
         <button type="submit" disabled={loading}>
           {loading ? "Searching..." : "Search"}
         </button>
@@ -138,86 +143,138 @@ export default function CoverFlow() {
         </p>
       )}
 
-      <div className="coverflow-stage">
-        {albums.map((album, index) => {
-          let offset = index - selected;
+      {currentSong ? (
+        <>
+          <div className={`coverflow-stage ${playerOpen ? "player-open" : ""}`}>
+            {songs.map((song, index) => {
+              let offset = index - selected;
+              if (offset > songs.length / 2) offset -= songs.length;
+              if (offset < -songs.length / 2) offset += songs.length;
 
-          if (offset > albums.length / 2) offset -= albums.length;
-          if (offset < -albums.length / 2) offset += albums.length;
+              const active = offset === 0;
 
-          const active = offset === 0;
+              return (
+                <div
+                  key={song.id}
+                  className={`album-card ${active ? "active" : ""} ${
+                    active && playerOpen ? "player-active" : ""
+                  }`}
+                  style={{
+                    width: 340,
+                    height: 340,
+                    position: "absolute",
+                    transform: `translateX(${offset * 195}px) rotateY(${
+                      offset === 0 ? 0 : offset > 0 ? -45 : 45
+                    }deg) scale(${active ? 1 : 0.82})`,
+                    transition:
+                      "transform 550ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease",
+                    zIndex: 20 - Math.abs(offset),
+                    opacity: Math.abs(offset) > 2 ? 0 : 1,
+                    pointerEvents: Math.abs(offset) > 2 ? "none" : "auto",
+                  }}
+                >
+                  <div className="album-crossfade">
+                    <button
+                      type="button"
+                      className="album-artwork-panel"
+                      onClick={() => selectSong(index)}
+                      aria-label={`Open player for ${song.title} by ${song.artist}`}
+                      tabIndex={active && !playerOpen ? 0 : -1}
+                    >
+                      <span
+                        className="album-art"
+                        style={{
+                          background: song.artworkUrl
+                            ? `url("${song.artworkUrl}") center / cover`
+                            : "linear-gradient(145deg, #396afc, #2948ff)",
+                        }}
+                      >
+                        <span className="art-title">{song.title}</span>
+                        <span className="art-artist">{song.artist}</span>
+                      </span>
+                    </button>
 
-          return (
-            <button
-              key={album.id}
-              className={`album-card ${active ? "active" : ""}`}
-              style={{
-                transform: `translateX(${offset * 145}px) rotateY(${
-                  offset === 0 ? 0 : offset > 0 ? -55 : 55
-                }deg) scale(${active ? 1 : 0.8})`,
-                zIndex: 20 - Math.abs(offset),
-                opacity: Math.abs(offset) > 2 ? 0 : 1,
-                pointerEvents: Math.abs(offset) > 2 ? "none" : "auto",
-              }}
-              onClick={() => {
-                if (!active) setSelected(index);
-              }}
-              aria-label={`Select album ${album.title}`}
-              aria-pressed={active}
-            >
-              <span
-                className="album-art"
-                style={{
-                  background: album.artworkUrl
-                    ? `url("${album.artworkUrl}") center / cover`
-                    : `linear-gradient(145deg, ${album.colors[0]}, ${album.colors[1]})`,
-                }}
-              >
-                {!album.artworkUrl && <span className="art-orb" />}
-                <span className="art-title">{album.title}</span>
-                <span className="art-artist">{album.artist}</span>
-              </span>
+                    <div
+                      className="album-player-panel"
+                      aria-hidden={!active || !playerOpen}
+                    >
+                      <div className="player-card-heading">
+                        <span className="player-card-label">NOW PLAYING</span>
+                        <button
+                          type="button"
+                          className="cover-return"
+                          onClick={() => setPlayerOpen(false)}
+                          tabIndex={active && playerOpen ? 0 : -1}
+                        >
+                          ‹ Cover
+                        </button>
+                      </div>
 
-              <span className="album-reflection" />
+                      <div className="player-card-song">
+                        <strong>{song.title}</strong>
+                        <span>{song.artist}</span>
+                      </div>
+
+                      {song.embedUrl ? (
+                        <iframe
+                          key={song.id}
+                          src={song.embedUrl}
+                          title={`Apple Music player: ${song.title}`}
+                          width="100%"
+                          height="175"
+                          frameBorder="0"
+                          allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+                          style={{
+                            display: "block",
+                            border: 0,
+                            borderRadius: 10,
+                            background: "transparent",
+                          }}
+                        />
+                      ) : (
+                        <p className="player-unavailable">
+                          Apple Music player unavailable for this song.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <span className="album-reflection" />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="album-details">
+            <h1>{currentSong.title}</h1>
+            <p>{currentSong.artist}</p>
+            <p style={{ opacity: 0.7, fontSize: 14 }}>{currentSong.album}</p>
+          </div>
+
+          <div className="coverflow-controls">
+            <button onClick={() => move(-1)} aria-label="Previous song">
+              ‹
             </button>
-          );
-        })}
-      </div>
+            <span>
+              {String(selected + 1).padStart(2, "0")} /{" "}
+              {String(songs.length).padStart(2, "0")}
+            </span>
+            <button onClick={() => move(1)} aria-label="Next song">
+              ›
+            </button>
+          </div>
 
-      <div className="album-details">
-        <h1>{currentAlbum.title}</h1>
-        <p>{currentAlbum.artist}</p>
-      </div>
-
-      {currentAlbum.appleMusicUrl && (
-        <p style={{ textAlign: "center", marginTop: 16 }}>
-          <a
-            href={currentAlbum.appleMusicUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{ textDecoration: "underline" }}
-          >
-            Open in Apple Music ↗
-          </a>
+          <p className="browse-hint">
+            {playerOpen
+              ? "NOW PLAYING · RETURN TO COVER TO BROWSE"
+              : "SELECT AN ALBUM TO OPEN THE PLAYER"}
+          </p>
+        </>
+      ) : (
+        <p style={{ textAlign: "center", opacity: 0.7 }}>
+          Search for a song to get started.
         </p>
       )}
-
-      <div className="coverflow-controls">
-        <button onClick={() => move(-1)} aria-label="Previous album">
-          ‹
-        </button>
-
-        <span>
-          {String(selected + 1).padStart(2, "0")} /{" "}
-          {String(albums.length).padStart(2, "0")}
-        </span>
-
-        <button onClick={() => move(1)} aria-label="Next album">
-          ›
-        </button>
-      </div>
-
-      <p className="browse-hint">SELECT AN ALBUM TO EXPLORE</p>
     </section>
   );
 }
