@@ -119,7 +119,17 @@ export default function CoverFlow() {
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            const value = event.target.value;
+            setQuery(value);
+
+            if (!value.trim()) {
+              setSongs([]);
+              setSelected(0);
+              setPlayerOpen(false);
+              setError("");
+            }
+          }}
           placeholder="Search songs or artists..."
           aria-label="Search songs or artists"
           style={{
