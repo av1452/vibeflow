@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { searchAppleCatalog, type ITunesTrack } from "@/lib/itunes";
+import { searchAppleAlbums, type ITunesAlbum } from "@/lib/itunes";
 
 type Album = {
+  id: number | string;
   title: string;
   artist: string;
   colors: [string, string];
@@ -12,12 +13,12 @@ type Album = {
 };
 
 const demoAlbums: Album[] = [
-  { title: "Midnight Drive", artist: "Demo Artist", colors: ["#ff512f", "#7b2ff7"] },
-  { title: "Electric Dreams", artist: "Demo Artist", colors: ["#00c6ff", "#0072ff"] },
-  { title: "After Hours", artist: "Demo Artist", colors: ["#f953c6", "#b91d73"] },
-  { title: "Summer Nights", artist: "Demo Artist", colors: ["#f7971e", "#ffd200"] },
-  { title: "Neon City", artist: "Demo Artist", colors: ["#11998e", "#38ef7d"] },
-  { title: "Blue Horizon", artist: "Demo Artist", colors: ["#396afc", "#2948ff"] },
+  { id: "demo-1", title: "Midnight Drive", artist: "Demo Artist", colors: ["#ff512f", "#7b2ff7"] },
+  { id: "demo-2", title: "Electric Dreams", artist: "Demo Artist", colors: ["#00c6ff", "#0072ff"] },
+  { id: "demo-3", title: "After Hours", artist: "Demo Artist", colors: ["#f953c6", "#b91d73"] },
+  { id: "demo-4", title: "Summer Nights", artist: "Demo Artist", colors: ["#f7971e", "#ffd200"] },
+  { id: "demo-5", title: "Neon City", artist: "Demo Artist", colors: ["#11998e", "#38ef7d"] },
+  { id: "demo-6", title: "Blue Horizon", artist: "Demo Artist", colors: ["#396afc", "#2948ff"] },
 ];
 
 const colors: [string, string][] = [
@@ -46,22 +47,32 @@ export default function CoverFlow() {
     setError("");
 
     try {
-      const tracks: ITunesTrack[] = await searchAppleCatalog(term);
+      const results: ITunesAlbum[] = await searchAppleAlbums(term);
 
-      const results: Album[] = tracks.map((track, index) => ({
-        title: track.trackName,
-        artist: track.artistName,
+      const uniqueAlbums = Array.from(
+        new Map(
+          results.map((album) => [album.collectionId, album])
+        ).values()
+      );
+
+      const formattedAlbums: Album[] = uniqueAlbums.map((album, index) => ({
+        id: album.collectionId,
+        title: album.collectionName,
+        artist: album.artistName,
         colors: colors[index % colors.length],
-        artworkUrl: track.artworkUrl100?.replace("100x100bb", "600x600bb"),
-        appleMusicUrl: track.trackViewUrl || track.collectionViewUrl,
+        artworkUrl: album.artworkUrl100?.replace(
+          "100x100bb",
+          "600x600bb"
+        ),
+        appleMusicUrl: album.collectionViewUrl,
       }));
 
-      if (results.length === 0) {
-        setError("No songs found. Try another search.");
+      if (formattedAlbums.length === 0) {
+        setError("No albums found. Try another artist or search.");
         return;
       }
 
-      setAlbums(results);
+      setAlbums(formattedAlbums);
       setSelected(0);
     } catch {
       setError("Couldn't load Apple's catalog. Please try again.");
@@ -71,7 +82,9 @@ export default function CoverFlow() {
   }
 
   function move(direction: number) {
-    setSelected((current) => (current + direction + albums.length) % albums.length);
+    setSelected(
+      (current) => (current + direction + albums.length) % albums.length
+    );
   }
 
   const currentAlbum = albums[selected];
@@ -101,8 +114,8 @@ export default function CoverFlow() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search songs or artists..."
-          aria-label="Search Apple's music catalog"
+          placeholder="Search albums or artists..."
+          aria-label="Search Apple's album catalog"
           style={{
             flex: 1,
             minWidth: 0,
@@ -113,6 +126,7 @@ export default function CoverFlow() {
             color: "inherit",
           }}
         />
+
         <button type="submit" disabled={loading}>
           {loading ? "Searching..." : "Search"}
         </button>
@@ -127,6 +141,7 @@ export default function CoverFlow() {
       <div className="coverflow-stage">
         {albums.map((album, index) => {
           let offset = index - selected;
+
           if (offset > albums.length / 2) offset -= albums.length;
           if (offset < -albums.length / 2) offset += albums.length;
 
@@ -134,7 +149,7 @@ export default function CoverFlow() {
 
           return (
             <button
-              key={`${album.title}-${album.artist}-${index}`}
+              key={album.id}
               className={`album-card ${active ? "active" : ""}`}
               style={{
                 transform: `translateX(${offset * 145}px) rotateY(${
@@ -147,7 +162,7 @@ export default function CoverFlow() {
               onClick={() => {
                 if (!active) setSelected(index);
               }}
-              aria-label={`Select ${album.title}`}
+              aria-label={`Select album ${album.title}`}
               aria-pressed={active}
             >
               <span
@@ -162,6 +177,7 @@ export default function CoverFlow() {
                 <span className="art-title">{album.title}</span>
                 <span className="art-artist">{album.artist}</span>
               </span>
+
               <span className="album-reflection" />
             </button>
           );
@@ -187,18 +203,21 @@ export default function CoverFlow() {
       )}
 
       <div className="coverflow-controls">
-        <button onClick={() => move(-1)} aria-label="Previous song">
+        <button onClick={() => move(-1)} aria-label="Previous album">
           ‹
         </button>
+
         <span>
-          {String(selected + 1).padStart(2, "0")} / {String(albums.length).padStart(2, "0")}
+          {String(selected + 1).padStart(2, "0")} /{" "}
+          {String(albums.length).padStart(2, "0")}
         </span>
-        <button onClick={() => move(1)} aria-label="Next song">
+
+        <button onClick={() => move(1)} aria-label="Next album">
           ›
         </button>
       </div>
 
-      <p className="browse-hint">SELECT A TRACK TO EXPLORE</p>
+      <p className="browse-hint">SELECT AN ALBUM TO EXPLORE</p>
     </section>
   );
 }
