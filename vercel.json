@@ -1,0 +1,33 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "nextjs"
+    },
+    "landing": {
+      "root": "landing",
+      "framework": "nextjs"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/app",
+      "destination": {
+        "service": "app"
+      }
+    },
+    {
+      "source": "/app/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "landing"
+      }
+    }
+  ]
+}

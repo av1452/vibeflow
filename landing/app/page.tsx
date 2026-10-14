@@ -1,6 +1,6 @@
 import AlbumShowcase from "./components/AlbumShowcase";
 
-const appUrl = "https://vibeflow-ecru.vercel.app";
+const appUrl = "/app";
 const githubUrl = "https://github.com/av1452/vibeflow";
 
 const features = [
@@ -45,7 +45,7 @@ export default function Home() {
         <div className="nav-links">
           <a href="#features">Features</a>
           <a href={githubUrl} target="_blank" rel="noreferrer">GitHub ↗</a>
-          <a className="nav-cta" href={appUrl} target="_blank" rel="noreferrer">
+          <a className="nav-cta" href={appUrl}>
             Open app ↗
           </a>
         </div>
@@ -61,7 +61,7 @@ export default function Home() {
             iPod Cover Flow.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href={appUrl} target="_blank" rel="noreferrer">
+            <a className="button button-primary" href={appUrl}>
               Try VibeFlow <span>↗</span>
             </a>
             <a className="button button-secondary" href="#features">
@@ -108,7 +108,7 @@ export default function Home() {
         <div className="eyebrow">YOUR NEXT LISTEN STARTS HERE</div>
         <h2>Ready to get in the flow?</h2>
         <p>Jump in, search for something you love, and explore.</p>
-        <a className="button button-primary" href={appUrl} target="_blank" rel="noreferrer">
+        <a className="button button-primary" href={appUrl}>
           Launch VibeFlow ↗
         </a>
       </section>
@@ -125,7 +125,7 @@ export default function Home() {
             Created by Aidan Vazquez ↗
           </a>
           <a href={githubUrl} target="_blank" rel="noreferrer">GitHub ↗</a>
-          <a href={appUrl} target="_blank" rel="noreferrer">Web app ↗</a>
+          <a href={appUrl}>Web app ↗</a>
         </div>
       </footer>
     </main>
