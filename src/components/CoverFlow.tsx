@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { searchAppleCatalog, type ITunesTrack } from "@/lib/itunes";
 
 type Song = {
@@ -39,6 +39,8 @@ export default function CoverFlow() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const lastSwipeAt = useRef(0);
 
   async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,6 +81,8 @@ export default function CoverFlow() {
   }
 
   function selectSong(index: number) {
+    if (Date.now() - lastSwipeAt.current < 500) return;
+
     if (index === selected) {
       setPlayerOpen(true);
     } else {
@@ -94,6 +98,34 @@ export default function CoverFlow() {
       (current) => (current + direction + songs.length) % songs.length
     );
     setPlayerOpen(false);
+  }
+
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".album-player-panel")
+    ) {
+      pointerStart.current = null;
+      return;
+    }
+
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+
+    if (!start) return;
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      lastSwipeAt.current = Date.now();
+      move(deltaX < 0 ? 1 : -1);
+    }
   }
 
   const currentSong = songs[selected];
@@ -155,7 +187,15 @@ export default function CoverFlow() {
 
       {currentSong ? (
         <>
-          <div className={`coverflow-stage ${playerOpen ? "player-open" : ""}`}>
+          <div
+            className={`coverflow-stage ${playerOpen ? "player-open" : ""}`}
+            style={{ touchAction: "pan-y" }}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={() => {
+              pointerStart.current = null;
+            }}
+          >
             {songs.map((song, index) => {
               let offset = index - selected;
               if (offset > songs.length / 2) offset -= songs.length;
