@@ -170,8 +170,8 @@ export default function CoverFlow() {
                     active && playerOpen ? "player-active" : ""
                   }`}
                   style={{
-                    width: "min(340px, calc(100vw - 32px))",
-                    height: "min(340px, calc(100vw - 32px))",
+                    width: "min(340px, 72vw)",
+                    height: "min(340px, 72vw)",
                     position: "absolute",
                     transform: `translateX(${offset * 195}px) rotateY(${
                       offset === 0 ? 0 : offset > 0 ? -45 : 45
