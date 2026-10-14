@@ -712,21 +712,13 @@ main {
 }
 
 /* Keep album artwork and its outer container corners consistent */
-.album-crossfade {
-  border-radius: 5px;
-  overflow: hidden;
-}
-
+.album-crossfade,
 .album-artwork-panel,
 .album-player-panel {
-  border-radius: inherit;
+  border-radius: 5px !important;
   overflow: hidden;
 }
 
-.album-artwork-panel img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: inherit;
+.album-artwork-panel .album-art {
+  border-radius: 0 !important;
 }
