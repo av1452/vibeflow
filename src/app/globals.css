@@ -694,3 +694,19 @@ main {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* VibeFlow: keep album cards fully visible on mobile */
+@media (max-width: 600px) {
+  .coverflow-stage {
+    height: min(400px, calc(100vw + 24px));
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .album-crossfade {
+    width: 100%;
+    height: 100%;
+  }
+}
