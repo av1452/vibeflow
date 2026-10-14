@@ -1,8 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { searchAppleCatalog, type ITunesTrack } from "@/lib/itunes";
 
-const albums = [
+type Album = {
+  title: string;
+  artist: string;
+  colors: [string, string];
+  artworkUrl?: string;
+  appleMusicUrl?: string;
+};
+
+const demoAlbums: Album[] = [
   { title: "Midnight Drive", artist: "Demo Artist", colors: ["#ff512f", "#7b2ff7"] },
   { title: "Electric Dreams", artist: "Demo Artist", colors: ["#00c6ff", "#0072ff"] },
   { title: "After Hours", artist: "Demo Artist", colors: ["#f953c6", "#b91d73"] },
@@ -11,23 +20,113 @@ const albums = [
   { title: "Blue Horizon", artist: "Demo Artist", colors: ["#396afc", "#2948ff"] },
 ];
 
+const colors: [string, string][] = [
+  ["#ff512f", "#7b2ff7"],
+  ["#00c6ff", "#0072ff"],
+  ["#f953c6", "#b91d73"],
+  ["#f7971e", "#ffd200"],
+  ["#11998e", "#38ef7d"],
+  ["#396afc", "#2948ff"],
+];
+
 export default function CoverFlow() {
+  const [albums, setAlbums] = useState<Album[]>(demoAlbums);
   const [selected, setSelected] = useState(0);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const term = query.trim();
+    if (!term) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const tracks: ITunesTrack[] = await searchAppleCatalog(term);
+
+      const results: Album[] = tracks.map((track, index) => ({
+        title: track.trackName,
+        artist: track.artistName,
+        colors: colors[index % colors.length],
+        artworkUrl: track.artworkUrl100?.replace("100x100bb", "600x600bb"),
+        appleMusicUrl: track.trackViewUrl || track.collectionViewUrl,
+      }));
+
+      if (results.length === 0) {
+        setError("No songs found. Try another search.");
+        return;
+      }
+
+      setAlbums(results);
+      setSelected(0);
+    } catch {
+      setError("Couldn't load Apple's catalog. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function move(direction: number) {
-    setSelected((current) =>
-      (current + direction + albums.length) % albums.length
-    );
+    setSelected((current) => (current + direction + albums.length) % albums.length);
   }
+
+  const currentAlbum = albums[selected];
 
   return (
     <section className="coverflow">
-      <p className="eyebrow">YOUR COLLECTION</p>
+      <p
+        className="eyebrow"
+        style={{ marginBottom: 24, textAlign: "center" }}
+      >
+        YOUR COLLECTION
+      </p>
+
+      <form
+        onSubmit={handleSearch}
+        style={{
+          display: "flex",
+          gap: 10,
+          maxWidth: 520,
+          margin: "24px auto 44px",
+          padding: "0 16px",
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search songs or artists..."
+          aria-label="Search Apple's music catalog"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: "12px 16px",
+            borderRadius: 999,
+            border: "1px solid #ffffff30",
+            background: "#ffffff0c",
+            color: "inherit",
+          }}
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? "Searching..." : "Search"}
+        </button>
+      </form>
+
+      {error && (
+        <p role="status" style={{ textAlign: "center", marginBottom: 20 }}>
+          {error}
+        </p>
+      )}
 
       <div className="coverflow-stage">
         {albums.map((album, index) => {
           let offset = index - selected;
-
           if (offset > albums.length / 2) offset -= albums.length;
           if (offset < -albums.length / 2) offset += albums.length;
 
@@ -35,7 +134,7 @@ export default function CoverFlow() {
 
           return (
             <button
-              key={album.title}
+              key={`${album.title}-${album.artist}-${index}`}
               className={`album-card ${active ? "active" : ""}`}
               style={{
                 transform: `translateX(${offset * 145}px) rotateY(${
@@ -45,21 +144,21 @@ export default function CoverFlow() {
                 opacity: Math.abs(offset) > 2 ? 0 : 1,
                 pointerEvents: Math.abs(offset) > 2 ? "none" : "auto",
               }}
-              onClick={() =>
-                offset === 0
-                  ? undefined
-                  : setSelected(index)
-              }
+              onClick={() => {
+                if (!active) setSelected(index);
+              }}
               aria-label={`Select ${album.title}`}
               aria-pressed={active}
             >
               <span
                 className="album-art"
                 style={{
-                  background: `linear-gradient(145deg, ${album.colors[0]}, ${album.colors[1]})`,
+                  background: album.artworkUrl
+                    ? `url("${album.artworkUrl}") center / cover`
+                    : `linear-gradient(145deg, ${album.colors[0]}, ${album.colors[1]})`,
                 }}
               >
-                <span className="art-orb" />
+                {!album.artworkUrl && <span className="art-orb" />}
                 <span className="art-title">{album.title}</span>
                 <span className="art-artist">{album.artist}</span>
               </span>
@@ -70,21 +169,36 @@ export default function CoverFlow() {
       </div>
 
       <div className="album-details">
-        <h1>{albums[selected].title}</h1>
-        <p>{albums[selected].artist}</p>
+        <h1>{currentAlbum.title}</h1>
+        <p>{currentAlbum.artist}</p>
       </div>
 
+      {currentAlbum.appleMusicUrl && (
+        <p style={{ textAlign: "center", marginTop: 16 }}>
+          <a
+            href={currentAlbum.appleMusicUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: "underline" }}
+          >
+            Open in Apple Music ↗
+          </a>
+        </p>
+      )}
+
       <div className="coverflow-controls">
-        <button onClick={() => move(-1)} aria-label="Previous album">
+        <button onClick={() => move(-1)} aria-label="Previous song">
           ‹
         </button>
-        <span>{String(selected + 1).padStart(2, "0")} / {String(albums.length).padStart(2, "0")}</span>
-        <button onClick={() => move(1)} aria-label="Next album">
+        <span>
+          {String(selected + 1).padStart(2, "0")} / {String(albums.length).padStart(2, "0")}
+        </span>
+        <button onClick={() => move(1)} aria-label="Next song">
           ›
         </button>
       </div>
 
-      <p className="browse-hint">SELECT AN ALBUM TO EXPLORE</p>
+      <p className="browse-hint">SELECT A TRACK TO EXPLORE</p>
     </section>
   );
 }

@@ -245,4 +245,15 @@ main {
   .coverflow-stage .album-card {
     --spacing: 120px;
   }
+
+
+  /* Cover Flow heading and search spacing */
+  .coverflow > .eyebrow {
+  margin-bottom: 20px;
+  }
+
+  .coverflow > form {
+  margin-top: 0 !important;
+  margin-bottom: 36px !important;
+  }
 }
